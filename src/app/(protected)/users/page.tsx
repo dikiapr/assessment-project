@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usersAPI } from "@/src/services/api";
+import ErrorDialog from "@/src/components/dialog/ErrorDialog";
 
 interface User {
   id: number;
@@ -14,6 +15,8 @@ interface User {
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -22,7 +25,8 @@ const UsersPage = () => {
         const response = await usersAPI.getAll();
         setUsers(response.data);
       } catch (error: any) {
-        alert(error.message || "Gagal mengambil data user");
+        setErrorMessage(error.message || "Gagal mengambil data user");
+        setShowErrorDialog(true);
       } finally {
         setLoading(false);
       }
@@ -99,6 +103,14 @@ const UsersPage = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Error Dialog */}
+      <ErrorDialog
+        isOpen={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        title="Gagal Memuat Data"
+        message={errorMessage}
+      />
     </div>
   );
 };

@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import ProductModal from "@/src/components/modal/ProductModal";
 import { productsAPI } from "@/src/services/api";
+import ConfirmationDialog from "@/src/components/dialog/ConfirmationDialog";
+import SuccessDialog from "@/src/components/dialog/SuccessDialog";
+import ErrorDialog from "@/src/components/dialog/ErrorDialog";
 
 interface Product {
   id: number;
@@ -17,6 +20,13 @@ const ProductsPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [productToDelete, setProductToDelete] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch products
   const fetchProducts = async () => {
@@ -25,7 +35,8 @@ const ProductsPage = () => {
       const response = await productsAPI.getAll();
       setProducts(response.data);
     } catch (error: any) {
-      alert(error.message || "Gagal mengambil data produk");
+      setErrorMessage(error.message || "Gagal mengambil data produk");
+      setShowErrorDialog(true);
     } finally {
       setLoading(false);
     }
@@ -48,15 +59,29 @@ const ProductsPage = () => {
   };
 
   // Handle delete product
-  const handleDeleteProduct = async (id: number) => {
-    if (!confirm("Yakin ingin menghapus produk ini?")) return;
+  const handleDeleteProduct = (id: number) => {
+    setProductToDelete(id);
+    setShowDeleteConfirm(true);
+  };
+
+  // Confirm delete product
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
 
     try {
-      await productsAPI.delete(id);
-      alert("Produk berhasil dihapus");
+      setIsDeleting(true);
+      await productsAPI.delete(productToDelete);
+      setShowDeleteConfirm(false);
+      setSuccessMessage("Produk berhasil dihapus");
+      setShowSuccessDialog(true);
       fetchProducts(); // Refresh data
     } catch (error: any) {
-      alert(error.message || "Gagal menghapus produk");
+      setShowDeleteConfirm(false);
+      setErrorMessage(error.message || "Gagal menghapus produk");
+      setShowErrorDialog(true);
+    } finally {
+      setIsDeleting(false);
+      setProductToDelete(null);
     }
   };
 
@@ -70,16 +95,18 @@ const ProductsPage = () => {
       if (selectedProduct) {
         // Update
         await productsAPI.update(selectedProduct.id, data);
-        alert("Produk berhasil diupdate");
+        setSuccessMessage("Produk berhasil diupdate");
       } else {
         // Create
         await productsAPI.create(data);
-        alert("Produk berhasil ditambahkan");
+        setSuccessMessage("Produk berhasil ditambahkan");
       }
       setOpenModal(false);
+      setShowSuccessDialog(true);
       fetchProducts(); // Refresh data
     } catch (error: any) {
-      alert(error.message || "Gagal menyimpan produk");
+      setErrorMessage(error.message || "Gagal menyimpan produk");
+      setShowErrorDialog(true);
     }
   };
 
@@ -174,13 +201,44 @@ const ProductsPage = () => {
         </table>
       </div>
 
-      {/* Modal */}
+      {/* Product Modal */}
       <ProductModal
         isOpen={openModal}
         onClose={() => setOpenModal(false)}
         onSave={handleSaveProduct}
         product={selectedProduct}
         title={selectedProduct ? "Edit Produk" : "Tambah Produk"}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showDeleteConfirm}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setProductToDelete(null);
+        }}
+        onConfirm={confirmDeleteProduct}
+        title="Hapus Produk"
+        description="Apakah Anda yakin ingin menghapus produk ini? Data yang dihapus tidak dapat dikembalikan."
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        isLoading={isDeleting}
+      />
+
+      {/* Success Dialog */}
+      <SuccessDialog
+        isOpen={showSuccessDialog}
+        onClose={() => setShowSuccessDialog(false)}
+        title="Berhasil!"
+        message={successMessage}
+      />
+
+      {/* Error Dialog */}
+      <ErrorDialog
+        isOpen={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        title="Gagal!"
+        message={errorMessage}
       />
     </div>
   );

@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { productsAPI, transactionsAPI } from "@/src/services/api";
+import ConfirmationDialog from "@/src/components/dialog/ConfirmationDialog";
+import SuccessDialog from "@/src/components/dialog/SuccessDialog";
+import ErrorDialog from "@/src/components/dialog/ErrorDialog";
 
 interface Product {
   id: number;
@@ -20,6 +23,10 @@ const TransactionsPage = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Fetch products
   useEffect(() => {
@@ -29,7 +36,8 @@ const TransactionsPage = () => {
         const response = await productsAPI.getAll();
         setProducts(response.data);
       } catch (error: any) {
-        alert(error.message || "Gagal mengambil data produk");
+        setErrorMessage(error.message || "Gagal mengambil data produk");
+        setShowErrorDialog(true);
       } finally {
         setLoading(false);
       }
@@ -44,7 +52,8 @@ const TransactionsPage = () => {
     if (existing) {
       // Check stock
       if (existing.qty >= product.stock) {
-        alert(`Stok ${product.name} tidak mencukupi`);
+        setErrorMessage(`Stok ${product.name} tidak mencukupi`);
+        setShowErrorDialog(true);
         return;
       }
 
@@ -55,7 +64,8 @@ const TransactionsPage = () => {
       );
     } else {
       if (product.stock === 0) {
-        alert(`Stok ${product.name} habis`);
+        setErrorMessage(`Stok ${product.name} habis`);
+        setShowErrorDialog(true);
         return;
       }
       setCart([...cart, { ...product, qty: 1 }]);
@@ -72,7 +82,10 @@ const TransactionsPage = () => {
     if (!product) return;
 
     if (qty > product.stock) {
-      alert(`Stok ${product.name} tidak mencukupi. Maksimal: ${product.stock}`);
+      setErrorMessage(
+        `Stok ${product.name} tidak mencukupi. Maksimal: ${product.stock}`,
+      );
+      setShowErrorDialog(true);
       return;
     }
 
@@ -86,12 +99,18 @@ const TransactionsPage = () => {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-  const handleSaveTransaction = async () => {
+  const handleSaveTransaction = () => {
     if (cart.length === 0) {
-      alert("Keranjang masih kosong");
+      setErrorMessage("Keranjang masih kosong");
+      setShowErrorDialog(true);
       return;
     }
 
+    setShowSaveConfirm(true);
+  };
+
+  const confirmSaveTransaction = async () => {
+    setShowSaveConfirm(false);
     setSaving(true);
 
     try {
@@ -101,14 +120,15 @@ const TransactionsPage = () => {
       }));
 
       await transactionsAPI.create(items);
-      alert("Transaksi berhasil disimpan");
+      setShowSuccessDialog(true);
 
       // Clear cart and refresh products
       setCart([]);
       const response = await productsAPI.getAll();
       setProducts(response.data);
     } catch (error: any) {
-      alert(error.message || "Gagal menyimpan transaksi");
+      setErrorMessage(error.message || "Gagal menyimpan transaksi");
+      setShowErrorDialog(true);
     } finally {
       setSaving(false);
     }
@@ -242,14 +262,7 @@ const TransactionsPage = () => {
           )}
 
           {/* Total */}
-          <div className="border-t pt-4 mt-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span>Subtotal</span>
-              <span className="font-semibold">
-                Rp {total.toLocaleString("id-ID")}
-              </span>
-            </div>
-
+          <div className="border-t-2 pt-4 mt-4">
             <div className="flex justify-between text-base font-bold mb-4">
               <span>Total</span>
               <span className="text-red-900">
@@ -267,6 +280,34 @@ const TransactionsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Save Transaction Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showSaveConfirm}
+        onCancel={() => setShowSaveConfirm(false)}
+        onConfirm={confirmSaveTransaction}
+        title="Konfirmasi Transaksi"
+        description={`Total transaksi: Rp ${total.toLocaleString("id-ID")}. Apakah Anda yakin ingin menyimpan transaksi ini?`}
+        confirmText="Ya, Simpan"
+        cancelText="Batal"
+        isLoading={saving}
+      />
+
+      {/* Success Dialog */}
+      <SuccessDialog
+        isOpen={showSuccessDialog}
+        onClose={() => setShowSuccessDialog(false)}
+        title="Transaksi Berhasil!"
+        message="Transaksi telah berhasil disimpan dan stok produk telah diperbarui."
+      />
+
+      {/* Error Dialog */}
+      <ErrorDialog
+        isOpen={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        title="Terjadi Kesalahan"
+        message={errorMessage}
+      />
     </div>
   );
 };

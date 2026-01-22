@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { reportsAPI } from "@/src/services/api";
 import { FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel, exportToPDF } from "@/src/lib/exportUtils";
+import SuccessDialog from "@/src/components/dialog/SuccessDialog";
+import ErrorDialog from "@/src/components/dialog/ErrorDialog";
 
 interface Transaction {
   id: number;
@@ -48,6 +50,10 @@ const ReportsPage = () => {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const fetchReports = async (start?: string, end?: string) => {
     try {
@@ -55,7 +61,8 @@ const ReportsPage = () => {
       const response = await reportsAPI.get(start, end);
       setReportData(response.data);
     } catch (error: any) {
-      alert(error.message || "Gagal mengambil data laporan");
+      setErrorMessage(error.message || "Gagal mengambil data laporan");
+      setShowErrorDialog(true);
     } finally {
       setLoading(false);
     }
@@ -68,12 +75,16 @@ const ReportsPage = () => {
   const handleFilter = () => {
     if (startDate && endDate) {
       if (new Date(startDate) > new Date(endDate)) {
-        alert("Tanggal mulai tidak boleh lebih besar dari tanggal akhir");
+        setErrorMessage(
+          "Tanggal mulai tidak boleh lebih besar dari tanggal akhir",
+        );
+        setShowErrorDialog(true);
         return;
       }
       fetchReports(startDate, endDate);
     } else if (startDate || endDate) {
-      alert("Harap isi kedua tanggal");
+      setErrorMessage("Harap isi kedua tanggal untuk filter");
+      setShowErrorDialog(true);
     } else {
       fetchReports();
     }
@@ -95,6 +106,38 @@ const ReportsPage = () => {
     });
   };
 
+  const handleExportPDF = () => {
+    if (!reportData) {
+      setErrorMessage("Tidak ada data untuk di-export");
+      setShowErrorDialog(true);
+      return;
+    }
+    try {
+      exportToPDF(reportData, startDate, endDate);
+      setSuccessMessage("Laporan PDF berhasil di-export!");
+      setShowSuccessDialog(true);
+    } catch (error: any) {
+      setErrorMessage(error.message || "Gagal export PDF");
+      setShowErrorDialog(true);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (!reportData) {
+      setErrorMessage("Tidak ada data untuk di-export");
+      setShowErrorDialog(true);
+      return;
+    }
+    try {
+      exportToExcel(reportData, startDate, endDate);
+      setSuccessMessage("Laporan Excel berhasil di-export!");
+      setShowSuccessDialog(true);
+    } catch (error: any) {
+      setErrorMessage(error.message || "Gagal export Excel");
+      setShowErrorDialog(true);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -112,22 +155,6 @@ const ReportsPage = () => {
       </div>
     );
   }
-
-  const handleExportPDF = () => {
-    if (!reportData) {
-      alert("Tidak ada data untuk di-export");
-      return;
-    }
-    exportToPDF(reportData, startDate, endDate);
-  };
-
-  const handleExportExcel = () => {
-    if (!reportData) {
-      alert("Tidak ada data untuk di-export");
-      return;
-    }
-    exportToExcel(reportData, startDate, endDate);
-  };
 
   return (
     <div className="p-6">
@@ -324,6 +351,22 @@ const ReportsPage = () => {
           </div>
         )}
       </div>
+
+      {/* Success Dialog */}
+      <SuccessDialog
+        isOpen={showSuccessDialog}
+        onClose={() => setShowSuccessDialog(false)}
+        title="Berhasil!"
+        message={successMessage}
+      />
+
+      {/* Error Dialog */}
+      <ErrorDialog
+        isOpen={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        title="Gagal!"
+        message={errorMessage}
+      />
     </div>
   );
 };

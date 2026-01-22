@@ -6,6 +6,9 @@ import Image from "next/image";
 import { authAPI } from "@/src/services/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ConfirmationDialog from "@/src/components/dialog/ConfirmationDialog";
+import ErrorDialog from "../dialog/ErrorDialog";
+import SuccessDialog from "../dialog/SuccessDialog";
 
 const RegisterModal = () => {
   const router = useRouter();
@@ -16,12 +19,14 @@ const RegisterModal = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const user = authAPI.getCurrentUser();
     if (user) {
-      // Redirect based on role
       if (user.role === "ADMIN") {
         router.push("/products");
       } else {
@@ -30,31 +35,42 @@ const RegisterModal = () => {
     }
   }, [router]);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmRegister = async () => {
+    setShowConfirmDialog(false);
     setLoading(true);
 
     try {
-      const response = await authAPI.register(
-        fullName,
-        email,
-        password,
-        confirmPassword,
-      );
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fullName, email, password, confirmPassword }),
+      });
 
-      // Redirect ke dashboard setelah register berhasil
-      const user = response.data.user;
-      if (user.role === "ADMIN") {
-        router.push("/products");
-      } else {
-        router.push("/transactions");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Registrasi gagal");
       }
+
+      setShowSuccessDialog(true);
     } catch (err: any) {
-      setError(err.message || "Registrasi gagal");
+      setErrorMessage(err.message || "Registrasi gagal. Silakan coba lagi.");
+      setShowErrorDialog(true);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSuccessClose = () => {
+    setShowSuccessDialog(false);
+    router.push("/login");
   };
 
   return (
@@ -77,15 +93,8 @@ const RegisterModal = () => {
           </p>
         </div>
 
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            {error}
-          </div>
-        )}
-
         {/* Form */}
-        <form onSubmit={handleRegister} className="space-y-4 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Full Name */}
           <div>
             <label htmlFor="fullName" className="block font-medium mb-2">
@@ -97,7 +106,7 @@ const RegisterModal = () => {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Masukkan nama lengkap"
-              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-900"
+              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-900 focus:outline-none"
               required
             />
           </div>
@@ -113,7 +122,7 @@ const RegisterModal = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Masukkan email anda"
-              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-900"
+              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-900 focus:outline-none"
               required
             />
           </div>
@@ -130,7 +139,7 @@ const RegisterModal = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Masukkan kata sandi"
-                className="w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-red-900"
+                className="w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-red-900 focus:outline-none"
                 required
               />
               <button
@@ -155,7 +164,7 @@ const RegisterModal = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Masukkan ulang kata sandi"
-                className="w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-red-900"
+                className="w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-red-900 focus:outline-none"
                 required
               />
               <button
@@ -172,7 +181,7 @@ const RegisterModal = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-red-900 hover:bg-red-800 text-white font-semibold py-3 rounded-lg disabled:opacity-50"
+            className="w-full bg-red-900 hover:bg-red-800 text-white font-semibold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? "Memproses..." : "Daftar"}
           </button>
@@ -185,7 +194,7 @@ const RegisterModal = () => {
               Sudah punya akun?{" "}
               <Link
                 href="/login"
-                className="text-red-900 underline font-medium"
+                className="text-red-900 underline font-medium hover:text-red-800"
               >
                 Silakan login
               </Link>
@@ -197,14 +206,40 @@ const RegisterModal = () => {
       {/* Footer */}
       <div className="text-center text-xs text-gray-500 mt-6">
         &copy; {new Date().getFullYear()} Aplikasi Food Store |{" "}
-        <Link href="/privacy" className="underline">
+        <Link href="/privacy" className="underline hover:text-gray-700">
           Kebijakan Privasi
         </Link>{" "}
         dan{" "}
-        <Link href="/terms" className="underline">
+        <Link href="/terms" className="underline hover:text-gray-700">
           Syarat & Ketentuan
         </Link>
       </div>
+
+      {/* Dialogs */}
+      <ConfirmationDialog
+        isOpen={showConfirmDialog}
+        onCancel={() => setShowConfirmDialog(false)}
+        onConfirm={handleConfirmRegister}
+        title="Konfirmasi Pendaftaran"
+        description="Apakah Anda yakin data yang dimasukkan sudah benar?"
+        confirmText="Ya, Daftar"
+        cancelText="Batal"
+        isLoading={loading}
+      />
+
+      <SuccessDialog
+        isOpen={showSuccessDialog}
+        onClose={handleSuccessClose}
+        title="Registrasi Berhasil!"
+        message="Akun Anda telah berhasil dibuat. Silakan login dengan akun Anda."
+      />
+
+      <ErrorDialog
+        isOpen={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        title="Registrasi Gagal"
+        message={errorMessage}
+      />
     </div>
   );
 };
