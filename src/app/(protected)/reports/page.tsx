@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { reportsAPI } from "@/src/services/api";
 import { FileSpreadsheet, FileText } from "lucide-react";
-import { exportToExcel, exportToPDF } from "@/src/lib/exportUtils";
 import SuccessDialog from "@/src/components/dialog/SuccessDialog";
 import ErrorDialog from "@/src/components/dialog/ErrorDialog";
 
@@ -54,6 +53,7 @@ const ReportsPage = () => {
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const fetchReports = async (start?: string, end?: string) => {
     try {
@@ -106,35 +106,41 @@ const ReportsPage = () => {
     });
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!reportData) {
       setErrorMessage("Tidak ada data untuk di-export");
       setShowErrorDialog(true);
       return;
     }
     try {
-      exportToPDF(reportData, startDate, endDate);
+      setExporting(true);
+      await reportsAPI.exportPDF(startDate, endDate);
       setSuccessMessage("Laporan PDF berhasil di-export!");
       setShowSuccessDialog(true);
     } catch (error: any) {
       setErrorMessage(error.message || "Gagal export PDF");
       setShowErrorDialog(true);
+    } finally {
+      setExporting(false);
     }
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!reportData) {
       setErrorMessage("Tidak ada data untuk di-export");
       setShowErrorDialog(true);
       return;
     }
     try {
-      exportToExcel(reportData, startDate, endDate);
+      setExporting(true);
+      await reportsAPI.exportExcel(startDate, endDate);
       setSuccessMessage("Laporan Excel berhasil di-export!");
       setShowSuccessDialog(true);
     } catch (error: any) {
       setErrorMessage(error.message || "Gagal export Excel");
       setShowErrorDialog(true);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -166,20 +172,20 @@ const ReportsPage = () => {
         <div className="flex gap-3">
           <button
             onClick={handleExportPDF}
-            disabled={loading || !reportData}
+            disabled={loading || !reportData || exporting}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FileText size={18} />
-            Export PDF
+            {exporting ? "Exporting..." : "Export PDF"}
           </button>
 
           <button
             onClick={handleExportExcel}
-            disabled={loading || !reportData}
+            disabled={loading || !reportData || exporting}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FileSpreadsheet size={18} />
-            Export Excel
+            {exporting ? "Exporting..." : "Export Excel"}
           </button>
         </div>
       </div>

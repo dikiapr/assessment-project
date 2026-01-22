@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 interface Transaction {
   id: number;
   total: number;
-  createdAt: string;
+  createdAt: Date;
   user: {
     fullName: string;
     email: string;
@@ -32,9 +32,9 @@ interface ReportData {
   transactions: Transaction[];
 }
 
-// Format date
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString("id-ID", {
+// Format date helper
+const formatDate = (date: Date | string) => {
+  return new Date(date).toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -43,17 +43,16 @@ const formatDate = (dateString: string) => {
   });
 };
 
-// Format currency
+// Format currency helper
 const formatCurrency = (amount: number) => {
   return `Rp ${amount.toLocaleString("id-ID")}`;
 };
 
-// Export to PDF
-export const exportToPDF = (
+export const generatePDF = (
   data: ReportData,
   startDate?: string,
   endDate?: string,
-) => {
+): Uint8Array => {
   const doc = new jsPDF();
 
   // Title
@@ -136,7 +135,7 @@ export const exportToPDF = (
     headStyles: { fillColor: [127, 29, 29] },
     styles: { fontSize: 8 },
     columnStyles: {
-      3: { cellWidth: 60 }, // Item column wider
+      3: { cellWidth: 60 },
     },
   });
 
@@ -153,17 +152,16 @@ export const exportToPDF = (
     );
   }
 
-  // Save
-  const filename = `Laporan_Penjualan_${new Date().getTime()}.pdf`;
-  doc.save(filename);
+  // Convert to buffer
+  const pdfOutput = doc.output("arraybuffer");
+  return new Uint8Array(pdfOutput);
 };
 
-// Export to Excel
-export const exportToExcel = (
+export const generateExcel = (
   data: ReportData,
   startDate?: string,
   endDate?: string,
-) => {
+): Buffer => {
   // Create workbook
   const wb = XLSX.utils.book_new();
 
@@ -222,7 +220,7 @@ export const exportToExcel = (
   const transactionsSheet = XLSX.utils.aoa_to_sheet(transactionsData);
   XLSX.utils.book_append_sheet(wb, transactionsSheet, "Detail Transaksi");
 
-  // Save
-  const filename = `Laporan_Penjualan_${new Date().getTime()}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  // Generate buffer
+  const excelBuffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+  return excelBuffer;
 };

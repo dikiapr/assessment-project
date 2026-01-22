@@ -146,6 +146,84 @@ export const reportsAPI = {
     const query = params.toString();
     return await apiFetch(`/reports${query ? `?${query}` : ""}`);
   },
+
+  exportPDF: async (startDate?: string, endDate?: string) => {
+    const token = getToken();
+    const params = new URLSearchParams();
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+
+    const query = params.toString();
+    const response = await fetch(
+      `${API_BASE_URL}/reports/export/pdf${query ? `?${query}` : ""}`,
+      {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Gagal export PDF");
+    }
+
+    // Get filename from header
+    const contentDisposition = response.headers.get("Content-Disposition");
+    const filename = contentDisposition
+      ? contentDisposition.split("filename=")[1].replace(/"/g, "")
+      : `Laporan_Penjualan_${new Date().getTime()}.pdf`;
+
+    // Download file
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
+  exportExcel: async (startDate?: string, endDate?: string) => {
+    const token = getToken();
+    const params = new URLSearchParams();
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+
+    const query = params.toString();
+    const response = await fetch(
+      `${API_BASE_URL}/reports/export/excel${query ? `?${query}` : ""}`,
+      {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Gagal export Excel");
+    }
+
+    // Get filename from header
+    const contentDisposition = response.headers.get("Content-Disposition");
+    const filename = contentDisposition
+      ? contentDisposition.split("filename=")[1].replace(/"/g, "")
+      : `Laporan_Penjualan_${new Date().getTime()}.xlsx`;
+
+    // Download file
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
 };
 
 // Users API
