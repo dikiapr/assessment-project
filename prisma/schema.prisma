@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  fullName     String        @map("full_name")
+  email        String        @unique
+  password     String
+  role         Role          @default(KASIR)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+model Product {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  price             Int
+  stock             Int
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  transactionItems  TransactionItem[]
+
+  @@map("products")
+}
+
+model Transaction {
+  id        Int               @id @default(autoincrement())
+  userId    Int               @map("user_id")
+  user      User              @relation(fields: [userId], references: [id])
+  total     Int
+  createdAt DateTime          @default(now()) @map("created_at")
+  items     TransactionItem[]
+
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            Int         @id @default(autoincrement())
+  transactionId Int         @map("transaction_id")
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  productId     Int         @map("product_id")
+  product       Product     @relation(fields: [productId], references: [id])
+  qty           Int
+  price         Int
+  subtotal      Int
+
+  @@map("transaction_items")
+}
+
+enum Role {
+  ADMIN
+  KASIR
+}
